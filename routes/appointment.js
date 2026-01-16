@@ -3,10 +3,37 @@ const router = express.Router();
 const db = require('../config/db');
 
 router.get('/', (req, res) => {
-    db.query("SELECT * FROM appointment", (err, result) => {
+    const sql = `
+        SELECT 
+            a.*, 
+            p.nama AS nama_pasien, 
+            p.no_hp AS no_hp_pasien,
+            d.nama_dokter AS nama_dokter, 
+            d.spesialis AS spesialis_dokter
+        FROM appointment a
+        JOIN pasien p ON a.idpasien = p.idpasien
+        JOIN dokter d ON a.iddokter = d.iddokter
+        ORDER BY a.tanggal DESC, a.jam ASC
+    `;
+
+    db.query(sql, (err, result) => {
         if (err) return res.status(500).send(err);
         res.json(result);
     });
+});
+
+router.put('/:id/status', (req, res) => {
+    const id = req.params.id;
+    const { status } = req.body; 
+    
+    db.query(
+        "UPDATE appointment SET status = ? WHERE idappointment = ?",
+        [status, id],
+        (err, result) => {
+            if (err) return res.status(500).send(err);
+            res.json({ message: `Status diperbarui ke ${status}` });
+        }
+    );
 });
 
 router.post('/', (req, res) => {
@@ -17,20 +44,32 @@ router.post('/', (req, res) => {
     });
 });
 
-router.put('/:id', (req, res) => {
-    const data = req.body;
-    const id = req.params.id;
-    db.query("UPDATE appointment SET ? WHERE idappointment=?", [data, id], (err, result) => {
-        if (err) return res.status(500).send(err);
-        res.json({ message: "Data appointment diupdate" });
-    });
-});
-
 router.delete('/:id', (req, res) => {
     const id = req.params.id;
     db.query("DELETE FROM appointment WHERE idappointment=?", id, (err, result) => {
         if (err) return res.status(500).send(err);
         res.json({ message: "appointment dihapus" });
+    });
+});
+router.get('/:id', (req, res) => {
+    const id = req.params.id;
+    const sql = `
+        SELECT 
+            a.*, 
+            p.nama AS nama_pasien, 
+            p.no_hp AS no_hp_pasien,
+            p.alamat AS alamat_pasien,
+            d.nama_dokter AS nama_dokter, 
+            d.spesialis AS spesialis_dokter
+        FROM appointment a
+        JOIN pasien p ON a.idpasien = p.idpasien
+        JOIN dokter d ON a.iddokter = d.iddokter
+        WHERE a.idappointment = ?`;
+
+    db.query(sql, [id], (err, result) => {
+        if (err) return res.status(500).send(err);
+        if (result.length === 0) return res.status(404).json({ message: "Appointment tidak ditemukan" });
+        res.json(result[0]);
     });
 });
 
